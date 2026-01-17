@@ -110,6 +110,14 @@ Commands:
     return;
   }
 
+  if (text === "birthday") {
+  await slackClient.views.open({
+    trigger_id: req.body.trigger_id,
+    view: birthdayModal
+  });
+  return;
+}
+
   /* =========================
      BIRTHDAY INPUT
   ========================= */
@@ -219,7 +227,40 @@ res.send("🎉 Birthday Bot installed successfully!");
   }
 });
 
+app.post("/slack/interactions", express.urlencoded({ extended: true }), async (req, res) => {
+  const payload = JSON.parse(req.body.payload);
 
+  if (payload.type === "view_submission" &&
+      payload.view.callback_id === "birthday_modal") {
+
+    const birthday =
+      payload.view.state.values.birthday_block.birthday_date.selected_date;
+
+    const userId = payload.user.id;
+    const teamId = payload.team.id;
+
+    const slackClient = await getSlackClient(teamId);
+    const userInfo = await slackClient.users.info({ user: userId });
+
+    await UserBirthday.findOneAndUpdate(
+      { slackUserId: userId },
+      {
+        birthday,
+        timezone: userInfo.user.tz
+      },
+      { upsert: true }
+    );
+
+    await slackClient.chat.postMessage({
+      channel: userId,
+      text: "🎉 Your birthday has been saved successfully!"
+    });
+
+    return res.json({ response_action: "clear" });
+  }
+
+  res.sendStatus(200);
+});
 
 
 app.post("/admin/workspace/toggle", express.json(), async (req, res) => {
