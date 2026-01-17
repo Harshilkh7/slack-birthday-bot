@@ -32,7 +32,7 @@ export const birthdayModal = {
     }
   ]
 };
-const { WebClient } = require("@slack/web-api");
+import { WebClient } from "@slack/web-api";
 const Workspace = require("./models/Workspace");
 
 async function getSlackClient(teamId) {
@@ -43,4 +43,6 @@ async function getSlackClient(teamId) {
   return new WebClient(workspace.botToken);
 }
 
-module.exports = { getSlackClient };
+export const getSlackClient = (teamId) => {
+  return new WebClient(process.env.SLACK_BOT_TOKEN);
+};
