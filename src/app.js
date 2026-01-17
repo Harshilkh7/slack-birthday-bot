@@ -34,51 +34,34 @@ const { sendMessage } = require("./slack");
 const connectDB = require("./db");
 connectDB();
 
-// Keep this OUTSIDE the handler (top of file)
-const processedEvents = new Set();
-
 // 🔥 Slack Events endpoint (VERIFICATION + EVENTS)
 app.post("/slack/events", async (req, res) => {
-  // ✅ ACK Slack immediately (VERY IMPORTANT)
-  res.sendStatus(200);
-
-  // URL verification
+     res.sendStatus(200);
+    console.log("EVENT RECEIVED:", req.body.event);
   if (req.body.type === "url_verification") {
+    // return res.status(200).send(req.body.challenge);
     return;
   }
 
   const event = req.body.event;
-  if (!event) return;
-
   console.log("EVENT RECEIVED:", event);
+  if (!event) return res.sendStatus(200);
 
-  // Only handle user DMs (ignore bot + non-DM messages)
   if (
-    event.type !== "message" ||
-    event.channel_type !== "im" ||
-    event.bot_id
+    event.type === "message" &&
+    event.channel_type === "im" &&
+    !event.bot_id
   ) {
-    return;
-  }
+    const text = (event.text || "").trim().toLowerCase();
+    console.log("EVENT RECEIVED:", event);
 
-  // ✅ Idempotency: prevent duplicate processing
-  const eventId = event.client_msg_id || event.ts;
-  if (processedEvents.has(eventId)) {
-    console.log("Duplicate event ignored:", eventId);
-    return;
-  }
-  processedEvents.add(eventId);
-
-  const text = (event.text || "").trim().toLowerCase();
+// HELP COMMAND
+if (text === "help") {
   const slackClient = await getSlackClient(event.team);
 
-  /* =========================
-     HELP COMMAND
-  ========================= */
-  if (text === "help") {
-    await slackClient.chat.postMessage({
-      channel: event.user,
-      text: `ℹ️ *Birthday Bot Help*
+  await slackClient.chat.postMessage({
+    channel: event.user,
+    text: `ℹ️ *Birthday Bot Help*
 
 • Send your birthday as: *YYYY-MM-DD*
   Example: *1999-03-21*
@@ -90,63 +73,56 @@ app.post("/slack/events", async (req, res) => {
 Commands:
 • *help* — show this message
 • *delete my data* — remove your birthday`
-    });
-    return;
-  }
+  });
 
-  /* =========================
-     DELETE MY DATA
-  ========================= */
-  if (text === "delete my data") {
-    await UserBirthday.deleteOne({
-      slackUserId: event.user
-    });
+  return res.sendStatus(200);
+}
 
-    await BirthdayLog.deleteMany({
-      slackUserId: event.user
-    });
+// DELETE MY DATA COMMAND
+if (text === "delete my data") {
+  const slackClient = await getSlackClient(event.team);
 
-    await slackClient.chat.postMessage({
-      channel: event.user,
-      text: `🗑️ Your data has been deleted successfully.
+  await UserBirthday.deleteOne({
+    slackUserId: event.user
+  });
+
+  await BirthdayLog.deleteMany({
+    slackUserId: event.user
+  });
+
+  await slackClient.chat.postMessage({
+    channel: event.user,
+    text: `🗑️ Your data has been deleted successfully.
 
 • Your birthday is removed
 • No future reminders will be sent
 
 You can re-add your birthday anytime by sending it again 🎂`
-    });
-    return;
-  }
+  });
 
-  /* =========================
-     BIRTHDAY INPUT
-  ========================= */
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    const userInfo = await slackClient.users.info({
-      user: event.user
-    });
+  return res.sendStatus(200);
+}
 
-    await UserBirthday.findOneAndUpdate(
-      { slackUserId: event.user },
-      {
-        birthday: text,
-        timezone: userInfo.user.tz
-      },
-      { upsert: true }
-    );
 
-    await slackClient.chat.postMessage({
-      channel: event.user,
-      text: "🎉 Thanks! Your birthday has been saved successfully."
-    });
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      const slackClient = await getSlackClient(event.team);
 
-    console.log("Birthday saved + confirmation sent");
-    return;
-  }
+      const userInfo = await slackClient.users.info({
+        user: event.user
+      });
 
-  /* =========================
-     INVALID INPUT
-  ========================= */
+      await UserBirthday.findOneAndUpdate(
+        { slackUserId: event.user },
+        {
+          birthday: text,
+          timezone: userInfo.user.tz
+        },
+        { upsert: true }
+      );
+    }
+    else {
+  const slackClient = await getSlackClient(event.team);
+
   await slackClient.chat.postMessage({
     channel: event.user,
     text: `❌ That doesn’t look like a valid date.
@@ -157,8 +133,12 @@ Example: *1999-03-21*
 
 Type *help* if you’re stuck 🙂`
   });
-});
+}
 
+  }
+
+  return res.sendStatus(200);
+});
 
 
 app.get("/slack/oauth_redirect", async (req, res) => {
