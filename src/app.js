@@ -25,6 +25,7 @@ const app = express();
 // 👇 MUST be at the top
 app.use(express.json());
 
+import { birthdayModal } from "./slack.js";
 const axios = require("axios");
 const Workspace = require("./models/Workspace");
 const BirthdayLog = require("./models/BirthdayLog");
@@ -227,40 +228,46 @@ res.send("🎉 Birthday Bot installed successfully!");
   }
 });
 
-app.post("/slack/interactions", express.urlencoded({ extended: true }), async (req, res) => {
-  const payload = JSON.parse(req.body.payload);
+app.post(
+  "/slack/interactions",
+  express.urlencoded({ extended: true }),
+  async (req, res) => {
+    const payload = JSON.parse(req.body.payload);
 
-  if (payload.type === "view_submission" &&
-      payload.view.callback_id === "birthday_modal") {
+    if (
+      payload.type === "view_submission" &&
+      payload.view.callback_id === "birthday_modal"
+    ) {
+      const birthday =
+        payload.view.state.values.birthday_block.birthday_date.selected_date;
 
-    const birthday =
-      payload.view.state.values.birthday_block.birthday_date.selected_date;
+      const userId = payload.user.id;
+      const teamId = payload.team.id;
 
-    const userId = payload.user.id;
-    const teamId = payload.team.id;
+      const slackClient = await getSlackClient(teamId);
+      const userInfo = await slackClient.users.info({ user: userId });
 
-    const slackClient = await getSlackClient(teamId);
-    const userInfo = await slackClient.users.info({ user: userId });
+      await UserBirthday.findOneAndUpdate(
+        { slackUserId: userId },
+        {
+          birthday,
+          timezone: userInfo.user.tz
+        },
+        { upsert: true }
+      );
 
-    await UserBirthday.findOneAndUpdate(
-      { slackUserId: userId },
-      {
-        birthday,
-        timezone: userInfo.user.tz
-      },
-      { upsert: true }
-    );
+      await slackClient.chat.postMessage({
+        channel: userId,
+        text: "🎉 Your birthday has been saved successfully!"
+      });
 
-    await slackClient.chat.postMessage({
-      channel: userId,
-      text: "🎉 Your birthday has been saved successfully!"
-    });
+      return res.json({ response_action: "clear" });
+    }
 
-    return res.json({ response_action: "clear" });
+    res.sendStatus(200);
   }
+);
 
-  res.sendStatus(200);
-});
 
 
 app.post("/admin/workspace/toggle", express.json(), async (req, res) => {
