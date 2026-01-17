@@ -24,6 +24,7 @@ const processedEvents = new Set();
 
 // 🔥 Slack Events endpoint (VERIFICATION + EVENTS)
 app.post("/slack/events", async (req, res) => {
+    console.log("SLACK HIT /slack/events");
   // 🔑 Slack URL verification (MUST be first)
   if (req.body.type === "url_verification") {
     return res.status(200).json({
@@ -33,7 +34,7 @@ app.post("/slack/events", async (req, res) => {
 
   // ✅ ACK Slack immediately for all other events
   res.sendStatus(200);
-  
+
    console.log("RAW SLACK BODY:", JSON.stringify(req.body, null, 2));
 
   const event = req.body.event;
