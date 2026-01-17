@@ -33,6 +33,8 @@ app.post("/slack/events", async (req, res) => {
 
   // ✅ ACK Slack immediately for all other events
   res.sendStatus(200);
+  
+   console.log("RAW SLACK BODY:", JSON.stringify(req.body, null, 2));
 
   const event = req.body.event;
   if (!event) return;
@@ -40,14 +42,14 @@ app.post("/slack/events", async (req, res) => {
   console.log("EVENT RECEIVED:", event);
 
   // Only handle user DMs (ignore bot + non-DM messages)
-  if (
-    event.type !== "message" ||
-    event.channel_type !== "im" ||
-    event.bot_id
-  ) {
-    return;
-  }
-
+if (
+  event.type !== "message" ||
+  event.channel_type !== "im" ||
+  event.subtype ||    // 👈 ignore non-user messages safely
+  event.bot_id
+) {
+  return;
+}
   // ✅ Idempotency
   const eventId = event.client_msg_id || event.ts;
   if (processedEvents.has(eventId)) {
