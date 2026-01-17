@@ -1,41 +1,25 @@
-// console.log("APP START");
-
-// require("dotenv").config();
-
-// const connectDB = require("./db");
-// connectDB(); // 🔥 IMPORTANT
-
-// require("./cron");
-
-// const express = require("express");
-// const app = express();
-
-// app.listen(3000, () => {
-//   console.log("SERVER LISTENING ON PORT 3000");
-// });
-
 console.log("APP START");
 
-require("dotenv").config();
-console.log("CLIENT ID:", process.env.SLACK_CLIENT_ID);
+import "dotenv/config";
+import express from "express";
+import axios from "axios";
 
-const express = require("express");
+import connectDB from "./db.js";
+import "./cron.js";
+
+import Workspace from "./models/Workspace.js";
+import BirthdayLog from "./models/BirthdayLog.js";
+import UserBirthday from "./models/UserBirthday.js";
+
+import { getSlackClient, birthdayModal } from "./slack.js";
+
 const app = express();
-
-// 👇 MUST be at the top
 app.use(express.json());
 
-import { birthdayModal } from "./slack.js";
-const axios = require("axios");
-const Workspace = require("./models/Workspace");
-const BirthdayLog = require("./models/BirthdayLog");
-const UserBirthday = require("./models/UserBirthday");
-const { getSlackClient } = require("./slack");
-const { sendMessage } = require("./slack");
-const connectDB = require("./db");
 connectDB();
+console.log("CLIENT ID:", process.env.SLACK_CLIENT_ID);
 
-// Keep this OUTSIDE the handler (top of file)
+// Keep outside handlers
 const processedEvents = new Set();
 
 // 🔥 Slack Events endpoint (VERIFICATION + EVENTS)
@@ -203,7 +187,7 @@ if (!teamId) {
 const installerId = result.data.authed_user?.id;
 
 if (installerId) {
-  const slackClient = new (require("@slack/web-api").WebClient)(botToken);
+  const slackClient = new WebClient(botToken);
 
   await slackClient.chat.postMessage({
     channel: installerId,

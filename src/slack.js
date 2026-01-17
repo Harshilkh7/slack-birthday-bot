@@ -1,3 +1,22 @@
+import { WebClient } from "@slack/web-api";
+import Workspace from "./models/Workspace.js";
+
+/**
+ * Returns a Slack client for a workspace
+ */
+export async function getSlackClient(teamId) {
+  const workspace = await Workspace.findOne({ teamId });
+
+  if (!workspace) {
+    throw new Error("Workspace not found for teamId: " + teamId);
+  }
+
+  return new WebClient(workspace.botToken);
+}
+
+/**
+ * Birthday modal definition
+ */
 export const birthdayModal = {
   type: "modal",
   callback_id: "birthday_modal",
@@ -31,18 +50,4 @@ export const birthdayModal = {
       }
     }
   ]
-};
-import { WebClient } from "@slack/web-api";
-const Workspace = require("./models/Workspace");
-
-async function getSlackClient(teamId) {
-  const workspace = await Workspace.findOne({ teamId });
-  if (!workspace) {
-    throw new Error("Workspace not found");
-  }
-  return new WebClient(workspace.botToken);
-}
-
-export const getSlackClient = (teamId) => {
-  return new WebClient(process.env.SLACK_BOT_TOKEN);
 };
