@@ -271,8 +271,6 @@ app.post("/admin/workspace/toggle", express.json(), async (req, res) => {
 // const connectDB = require("./db");
 // connectDB();
 
-require("./cron");
-
 app.listen(3000, () => {
   console.log("SERVER LISTENING ON PORT 3000");
 });
