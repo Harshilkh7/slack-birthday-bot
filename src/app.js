@@ -39,13 +39,15 @@ const processedEvents = new Set();
 
 // 🔥 Slack Events endpoint (VERIFICATION + EVENTS)
 app.post("/slack/events", async (req, res) => {
-  // ✅ ACK Slack immediately (VERY IMPORTANT)
-  res.sendStatus(200);
-
-  // URL verification
+  // 🔑 Slack URL verification (MUST be first)
   if (req.body.type === "url_verification") {
-    return;
+    return res.status(200).json({
+      challenge: req.body.challenge
+    });
   }
+
+  // ✅ ACK Slack immediately for all other events
+  res.sendStatus(200);
 
   const event = req.body.event;
   if (!event) return;
@@ -61,7 +63,7 @@ app.post("/slack/events", async (req, res) => {
     return;
   }
 
-  // ✅ Idempotency: prevent duplicate processing
+  // ✅ Idempotency
   const eventId = event.client_msg_id || event.ts;
   if (processedEvents.has(eventId)) {
     console.log("Duplicate event ignored:", eventId);
@@ -98,22 +100,12 @@ Commands:
      DELETE MY DATA
   ========================= */
   if (text === "delete my data") {
-    await UserBirthday.deleteOne({
-      slackUserId: event.user
-    });
-
-    await BirthdayLog.deleteMany({
-      slackUserId: event.user
-    });
+    await UserBirthday.deleteOne({ slackUserId: event.user });
+    await BirthdayLog.deleteMany({ slackUserId: event.user });
 
     await slackClient.chat.postMessage({
       channel: event.user,
-      text: `🗑️ Your data has been deleted successfully.
-
-• Your birthday is removed
-• No future reminders will be sent
-
-You can re-add your birthday anytime by sending it again 🎂`
+      text: `🗑️ Your data has been deleted successfully.`
     });
     return;
   }
@@ -140,7 +132,6 @@ You can re-add your birthday anytime by sending it again 🎂`
       text: "🎉 Thanks! Your birthday has been saved successfully."
     });
 
-    console.log("Birthday saved + confirmation sent");
     return;
   }
 
@@ -149,15 +140,10 @@ You can re-add your birthday anytime by sending it again 🎂`
   ========================= */
   await slackClient.chat.postMessage({
     channel: event.user,
-    text: `❌ That doesn’t look like a valid date.
-
-Please send your birthday in this format:
-👉 *YYYY-MM-DD*
-Example: *1999-03-21*
-
-Type *help* if you’re stuck 🙂`
+    text: `❌ Invalid date format. Use *YYYY-MM-DD*.`
   });
 });
+
 
 
 
